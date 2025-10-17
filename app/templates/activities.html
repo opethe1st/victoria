@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block title %}Activities - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    <div class="flex justify-between items-center mb-8">
+        <h1 class="text-3xl font-bold text-gray-800">All Activities</h1>
+        <a href="/upload" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+            Upload New Activity
+        </a>
+    </div>
+
+    {% if activities %}
+        <div class="bg-white rounded-lg shadow overflow-hidden">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Distance</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Duration</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Avg HR</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for activity in activities %}
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ activity.activity_date }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full
+                                    {% if activity.activity_type == 'swimming' %}bg-blue-100 text-blue-800
+                                    {% elif activity.activity_type == 'cycling' %}bg-green-100 text-green-800
+                                    {% else %}bg-orange-100 text-orange-800{% endif %}">
+                                    {{ activity.activity_type|capitalize }}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ (activity.total_distance / 1000)|round(2) }} km</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ (activity.duration // 60) }}:{{ '%02d'|format(activity.duration % 60) }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {% if activity.avg_heart_rate %}{{ activity.avg_heart_rate }} bpm{% else %}N/A{% endif %}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                <a href="/activities/{{ activity.id }}" class="text-blue-600 hover:underline">View Details</a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="bg-white rounded-lg shadow p-12 text-center">
+            <p class="text-gray-500 text-lg mb-4">No activities found</p>
+            <a href="/upload" class="inline-block px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                Upload Your First Activity
+            </a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
