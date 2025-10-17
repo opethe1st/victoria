@@ -20,12 +20,14 @@
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Distance</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Duration</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pace/Speed</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Avg HR</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
                     {% for activity in activities %}
+                        {% set pace_speed = calculate_pace_or_speed(activity.activity_type, activity.total_distance, activity.duration) %}
                         <tr class="hover:bg-gray-50">
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ activity.activity_date }}</td>
                             <td class="px-6 py-4 whitespace-nowrap">
@@ -36,8 +38,9 @@
                                     {{ activity.activity_type|capitalize }}
                                 </span>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ (activity.total_distance / 1000)|round(2) }} km</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ (activity.duration // 60) }}:{{ '%02d'|format(activity.duration % 60) }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ format_distance(activity.total_distance, activity.activity_type) }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ format_duration(activity.duration) }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ pace_speed.value|round(2) }} {{ pace_speed.unit }}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                 {% if activity.avg_heart_rate %}{{ activity.avg_heart_rate }} bpm{% else %}N/A{% endif %}
                             </td>

@@ -22,20 +22,21 @@
             </span>
         </div>
 
+        {% set pace_speed = calculate_pace_or_speed(activity.activity_type, activity.total_distance, activity.duration) %}
         <div class="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8">
             <div>
                 <p class="text-sm text-gray-600 mb-1">Distance</p>
-                <p class="text-2xl font-bold text-gray-900">{{ (activity.total_distance / 1000)|round(2) }} km</p>
+                <p class="text-2xl font-bold text-gray-900">{{ format_distance(activity.total_distance, activity.activity_type) }}</p>
             </div>
             <div>
                 <p class="text-sm text-gray-600 mb-1">Duration</p>
-                <p class="text-2xl font-bold text-gray-900">{{ (activity.duration // 60) }}:{{ '%02d'|format(activity.duration % 60) }}</p>
+                <p class="text-2xl font-bold text-gray-900">{{ format_duration(activity.duration) }}</p>
             </div>
             <div>
-                <p class="text-sm text-gray-600 mb-1">Avg Pace</p>
+                <p class="text-sm text-gray-600 mb-1">{{ pace_speed.label }}</p>
                 <p class="text-2xl font-bold text-gray-900">
                     {% if activity.total_distance > 0 %}
-                        {{ ((activity.duration / 60) / (activity.total_distance / 1000))|round(2) }} min/km
+                        {{ pace_speed.value|round(2) }} {{ pace_speed.unit }}
                     {% else %}
                         N/A
                     {% endif %}

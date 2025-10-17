@@ -6,6 +6,7 @@ from datetime import datetime
 from app.database import Activity, PersonalBest, GPSPoint
 from app.config import Config
 from app.fit_parser import parse_fit_file
+from app.utils import calculate_pace_or_speed, format_duration, format_distance
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -13,7 +14,13 @@ templates = Jinja2Templates(directory="app/templates")
 
 def get_template_context(request: Request, **kwargs):
     """Helper to add common context to all templates."""
-    context = {"request": request, "app_name": Config.APP_NAME}
+    context = {
+        "request": request,
+        "app_name": Config.APP_NAME,
+        "calculate_pace_or_speed": calculate_pace_or_speed,
+        "format_duration": format_duration,
+        "format_distance": format_distance
+    }
     context.update(kwargs)
     return context
 

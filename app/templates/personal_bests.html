@@ -23,10 +23,11 @@
                         </thead>
                         <tbody class="divide-y divide-gray-200">
                             {% for pb in swimming_pbs %}
+                                {% set pace = calculate_pace_or_speed('swimming', pb.distance, pb.best_time) %}
                                 <tr class="hover:bg-gray-50">
                                     <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ (pb.distance)|int }} m</td>
-                                    <td class="px-6 py-4 text-sm text-gray-900">{{ (pb.best_time // 60) }}:{{ '%02d'|format(pb.best_time % 60) }}</td>
-                                    <td class="px-6 py-4 text-sm text-gray-900">{{ pb.avg_pace|round(2) }} min/100m</td>
+                                    <td class="px-6 py-4 text-sm text-gray-900">{{ format_duration(pb.best_time) }}</td>
+                                    <td class="px-6 py-4 text-sm text-gray-900">{{ pace.value|round(2) }} {{ pace.unit }}</td>
                                     <td class="px-6 py-4 text-sm text-gray-600">{{ pb.achieved_date }}</td>
                                 </tr>
                             {% endfor %}
@@ -48,16 +49,17 @@
                             <tr>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Distance</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Time</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Pace</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Speed</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date Achieved</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-200">
                             {% for pb in cycling_pbs %}
+                                {% set speed = calculate_pace_or_speed('cycling', pb.distance, pb.best_time) %}
                                 <tr class="hover:bg-gray-50">
                                     <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ (pb.distance / 1000)|round(1) }} km</td>
-                                    <td class="px-6 py-4 text-sm text-gray-900">{{ (pb.best_time // 60) }}:{{ '%02d'|format(pb.best_time % 60) }}</td>
-                                    <td class="px-6 py-4 text-sm text-gray-900">{{ pb.avg_pace|round(2) }} min/km</td>
+                                    <td class="px-6 py-4 text-sm text-gray-900">{{ format_duration(pb.best_time) }}</td>
+                                    <td class="px-6 py-4 text-sm text-gray-900">{{ speed.value|round(2) }} {{ speed.unit }}</td>
                                     <td class="px-6 py-4 text-sm text-gray-600">{{ pb.achieved_date }}</td>
                                 </tr>
                             {% endfor %}
@@ -85,10 +87,11 @@
                         </thead>
                         <tbody class="divide-y divide-gray-200">
                             {% for pb in running_pbs %}
+                                {% set pace = calculate_pace_or_speed('running', pb.distance, pb.best_time) %}
                                 <tr class="hover:bg-gray-50">
                                     <td class="px-6 py-4 text-sm font-medium text-gray-900">{{ (pb.distance / 1000)|round(2) }} km</td>
-                                    <td class="px-6 py-4 text-sm text-gray-900">{{ (pb.best_time // 60) }}:{{ '%02d'|format(pb.best_time % 60) }}</td>
-                                    <td class="px-6 py-4 text-sm text-gray-900">{{ pb.avg_pace|round(2) }} min/km</td>
+                                    <td class="px-6 py-4 text-sm text-gray-900">{{ format_duration(pb.best_time) }}</td>
+                                    <td class="px-6 py-4 text-sm text-gray-900">{{ pace.value|round(2) }} {{ pace.unit }}</td>
                                     <td class="px-6 py-4 text-sm text-gray-600">{{ pb.achieved_date }}</td>
                                 </tr>
                             {% endfor %}
