@@ -2,8 +2,8 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 import os
-from database import init_db
-from config import Config
+from app.database import init_db
+from app.config import Config
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -16,8 +16,8 @@ app = FastAPI(
 )
 
 # Setup static files and templates
-app.mount("/static", StaticFiles(directory="static"), name="static")
-templates = Jinja2Templates(directory="templates")
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
+templates = Jinja2Templates(directory="app/templates")
 
 # Ensure required directories exist
 os.makedirs(Config.UPLOAD_FOLDER, exist_ok=True)
@@ -26,9 +26,9 @@ os.makedirs(Config.UPLOAD_FOLDER, exist_ok=True)
 init_db()
 
 # Register routers
-from api import activities as api_activities
-from api import personal_bests as api_personal_bests
-from web import routes as web_routes
+from app.api import activities as api_activities
+from app.api import personal_bests as api_personal_bests
+from app.web import routes as web_routes
 
 app.include_router(api_activities.router, prefix="/api/v1", tags=["activities"])
 app.include_router(api_personal_bests.router, prefix="/api/v1", tags=["personal-bests"])

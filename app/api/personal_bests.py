@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from typing import List
-from models import PersonalBestResponse
-from database import PersonalBest
+from app.models import PersonalBestResponse
+from app.database import PersonalBest
 
 router = APIRouter()
 

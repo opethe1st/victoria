@@ -3,11 +3,11 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 import os
 from datetime import datetime
-from database import Activity, PersonalBest
-from config import Config
+from app.database import Activity, PersonalBest
+from app.config import Config
 
 router = APIRouter()
-templates = Jinja2Templates(directory="templates")
+templates = Jinja2Templates(directory="app/templates")
 
 
 def get_template_context(request: Request, **kwargs):

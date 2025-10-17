@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from typing import List
-from models import ActivityResponse
-from database import Activity
+from app.models import ActivityResponse
+from app.database import Activity
 
 router = APIRouter()
 
