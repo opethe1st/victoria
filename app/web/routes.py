@@ -3,8 +3,9 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 import os
 from datetime import datetime
-from app.database import Activity, PersonalBest
+from app.database import Activity, PersonalBest, GPSPoint
 from app.config import Config
+from app.fit_parser import parse_fit_file
 
 router = APIRouter()
 templates = Jinja2Templates(directory="app/templates")
@@ -41,7 +42,7 @@ async def upload_page(request: Request):
 
 @router.post("/upload")
 async def upload_file(request: Request, file: UploadFile = File(...)):
-    """Handle file upload."""
+    """Handle file upload and parse .fit file."""
     if not file.filename.endswith('.fit'):
         # Return to upload page with error
         return templates.TemplateResponse(
@@ -57,7 +58,30 @@ async def upload_file(request: Request, file: UploadFile = File(...)):
         content = await file.read()
         buffer.write(content)
 
-    # Redirect to activities page
+    # Parse the .fit file
+    activity_data = parse_fit_file(filepath)
+
+    if not activity_data:
+        return templates.TemplateResponse(
+            "upload.html",
+            get_template_context(request, error="Failed to parse .fit file. Please ensure it's a valid file.")
+        )
+
+    # Create activity record in database
+    activity_id = Activity.create(
+        activity_type=activity_data['activity_type'],
+        activity_date=activity_data['activity_date'],
+        duration=activity_data['duration'],
+        total_distance=activity_data['total_distance'],
+        file_path=filepath,
+        avg_heart_rate=activity_data['avg_heart_rate']
+    )
+
+    # Store GPS points if available
+    if activity_data['gps_points']:
+        GPSPoint.create_batch(activity_id, activity_data['gps_points'])
+
+    # Redirect to activities page with success
     return RedirectResponse(url="/activities", status_code=303)
 
 
