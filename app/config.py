@@ -6,8 +6,14 @@ class Config:
     # Application name
     APP_NAME = os.environ.get('APP_NAME', 'IweKekeSare')
 
-    # Flask configuration
+    # Secret key
     SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
+
+    # Database configuration
+    DATABASE_URL = os.environ.get(
+        'DATABASE_URL',
+        'postgresql://victoria:victoria@localhost:5432/victoria'
+    )
 
     # Upload configuration
     UPLOAD_FOLDER = 'uploads'

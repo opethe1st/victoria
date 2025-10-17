@@ -8,7 +8,11 @@ venv/
 ENV/
 *.sqlite
 *.db
-uploads/
+.git/
+.gitignore
 .DS_Store
+README.md
+*.md
 data/
-.env
+.vscode/
+.idea/

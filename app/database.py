@@ -1,199 +1,283 @@
-import sqlite3
-import os
+from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, ForeignKey
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker, relationship
 from datetime import datetime
 from typing import Optional, List, Dict, Any
+from config import Config
 
-# Get the project root directory (parent of app/)
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DATABASE_PATH = os.path.join(BASE_DIR, 'data', 'victoria.db')
+# Create database engine
+engine = create_engine(Config.DATABASE_URL, echo=True)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base = declarative_base()
 
 
-def get_db_connection():
-    """Create a database connection."""
-    # Ensure the data directory exists
-    os.makedirs(os.path.dirname(DATABASE_PATH), exist_ok=True)
-    conn = sqlite3.connect(DATABASE_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+# SQLAlchemy Models
+class ActivityModel(Base):
+    __tablename__ = "activities"
+
+    id = Column(Integer, primary_key=True, index=True)
+    activity_type = Column(String, nullable=False)
+    upload_date = Column(DateTime, nullable=False)
+    activity_date = Column(DateTime, nullable=False)
+    duration = Column(Integer, nullable=False)  # seconds
+    total_distance = Column(Float, nullable=False)  # meters
+    avg_heart_rate = Column(Integer, nullable=True)
+    file_path = Column(String, nullable=False)
+
+    gps_points = relationship("GPSPointModel", back_populates="activity", cascade="all, delete-orphan")
+    personal_bests = relationship("PersonalBestModel", back_populates="activity", cascade="all, delete-orphan")
+
+
+class GPSPointModel(Base):
+    __tablename__ = "gps_points"
+
+    id = Column(Integer, primary_key=True, index=True)
+    activity_id = Column(Integer, ForeignKey("activities.id", ondelete="CASCADE"), nullable=False)
+    timestamp = Column(DateTime, nullable=False)
+    latitude = Column(Float, nullable=True)
+    longitude = Column(Float, nullable=True)
+    distance = Column(Float, nullable=False)  # cumulative meters
+    speed = Column(Float, nullable=True)  # m/s
+    heart_rate = Column(Integer, nullable=True)
+
+    activity = relationship("ActivityModel", back_populates="gps_points")
+
+
+class PersonalBestModel(Base):
+    __tablename__ = "personal_bests"
+
+    id = Column(Integer, primary_key=True, index=True)
+    activity_type = Column(String, nullable=False)
+    distance = Column(Float, nullable=False)  # meters
+    best_time = Column(Integer, nullable=False)  # seconds
+    avg_pace = Column(Float, nullable=False)
+    activity_id = Column(Integer, ForeignKey("activities.id", ondelete="CASCADE"), nullable=False)
+    achieved_date = Column(DateTime, nullable=False)
+
+    activity = relationship("ActivityModel", back_populates="personal_bests")
+
+
+class TimeAggregationModel(Base):
+    __tablename__ = "time_aggregations"
+
+    id = Column(Integer, primary_key=True, index=True)
+    activity_type = Column(String, nullable=False)
+    date = Column(DateTime, nullable=False)
+    duration = Column(Integer, nullable=False)  # seconds
+    aggregation_type = Column(String, nullable=False)  # 'daily', 'weekly', 'monthly'
 
 
 def init_db():
-    """Initialize the database with required tables."""
-    conn = get_db_connection()
-    cursor = conn.cursor()
-
-    # Activities table
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS activities (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            activity_type TEXT NOT NULL,
-            upload_date TIMESTAMP NOT NULL,
-            activity_date TIMESTAMP NOT NULL,
-            duration INTEGER NOT NULL,
-            total_distance REAL NOT NULL,
-            avg_heart_rate INTEGER,
-            file_path TEXT NOT NULL
-        )
-    ''')
-
-    # GPS Points table
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS gps_points (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            activity_id INTEGER NOT NULL,
-            timestamp TIMESTAMP NOT NULL,
-            latitude REAL,
-            longitude REAL,
-            distance REAL NOT NULL,
-            speed REAL,
-            heart_rate INTEGER,
-            FOREIGN KEY (activity_id) REFERENCES activities (id) ON DELETE CASCADE
-        )
-    ''')
-
-    # Personal Bests table
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS personal_bests (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            activity_type TEXT NOT NULL,
-            distance REAL NOT NULL,
-            best_time INTEGER NOT NULL,
-            avg_pace REAL NOT NULL,
-            activity_id INTEGER NOT NULL,
-            achieved_date TIMESTAMP NOT NULL,
-            FOREIGN KEY (activity_id) REFERENCES activities (id) ON DELETE CASCADE,
-            UNIQUE(activity_type, distance)
-        )
-    ''')
-
-    # Time Aggregations table
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS time_aggregations (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            activity_type TEXT NOT NULL,
-            date DATE NOT NULL,
-            duration INTEGER NOT NULL,
-            aggregation_type TEXT NOT NULL
-        )
-    ''')
-
-    conn.commit()
-    conn.close()
+    """Initialize the database - create all tables."""
+    Base.metadata.create_all(bind=engine)
 
 
+def get_db():
+    """Get database session."""
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+# Helper functions for compatibility with existing code
 class Activity:
-    """Model for fitness activities."""
+    """Helper class to maintain compatibility with existing code."""
 
     @staticmethod
     def create(activity_type: str, activity_date: datetime, duration: int,
                total_distance: float, file_path: str, avg_heart_rate: Optional[int] = None) -> int:
         """Create a new activity record."""
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute('''
-            INSERT INTO activities (activity_type, upload_date, activity_date,
-                                   duration, total_distance, avg_heart_rate, file_path)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        ''', (activity_type, datetime.now(), activity_date, duration,
-              total_distance, avg_heart_rate, file_path))
-        activity_id = cursor.lastrowid
-        conn.commit()
-        conn.close()
-        return activity_id
+        db = SessionLocal()
+        try:
+            activity = ActivityModel(
+                activity_type=activity_type,
+                upload_date=datetime.now(),
+                activity_date=activity_date,
+                duration=duration,
+                total_distance=total_distance,
+                avg_heart_rate=avg_heart_rate,
+                file_path=file_path
+            )
+            db.add(activity)
+            db.commit()
+            db.refresh(activity)
+            return activity.id
+        finally:
+            db.close()
 
     @staticmethod
     def get_all() -> List[Dict[str, Any]]:
         """Get all activities."""
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute('SELECT * FROM activities ORDER BY activity_date DESC')
-        activities = [dict(row) for row in cursor.fetchall()]
-        conn.close()
-        return activities
+        db = SessionLocal()
+        try:
+            activities = db.query(ActivityModel).order_by(ActivityModel.activity_date.desc()).all()
+            return [
+                {
+                    'id': a.id,
+                    'activity_type': a.activity_type,
+                    'upload_date': a.upload_date.isoformat() if a.upload_date else None,
+                    'activity_date': a.activity_date.isoformat() if a.activity_date else None,
+                    'duration': a.duration,
+                    'total_distance': a.total_distance,
+                    'avg_heart_rate': a.avg_heart_rate,
+                    'file_path': a.file_path
+                }
+                for a in activities
+            ]
+        finally:
+            db.close()
 
     @staticmethod
     def get_by_id(activity_id: int) -> Optional[Dict[str, Any]]:
         """Get a specific activity by ID."""
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute('SELECT * FROM activities WHERE id = ?', (activity_id,))
-        activity = cursor.fetchone()
-        conn.close()
-        return dict(activity) if activity else None
+        db = SessionLocal()
+        try:
+            activity = db.query(ActivityModel).filter(ActivityModel.id == activity_id).first()
+            if not activity:
+                return None
+            return {
+                'id': activity.id,
+                'activity_type': activity.activity_type,
+                'upload_date': activity.upload_date.isoformat() if activity.upload_date else None,
+                'activity_date': activity.activity_date.isoformat() if activity.activity_date else None,
+                'duration': activity.duration,
+                'total_distance': activity.total_distance,
+                'avg_heart_rate': activity.avg_heart_rate,
+                'file_path': activity.file_path
+            }
+        finally:
+            db.close()
 
 
 class GPSPoint:
-    """Model for GPS tracking points."""
+    """Helper class for GPS points."""
 
     @staticmethod
     def create_batch(activity_id: int, points: List[Dict[str, Any]]):
         """Create multiple GPS points for an activity."""
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.executemany('''
-            INSERT INTO gps_points (activity_id, timestamp, latitude, longitude,
-                                   distance, speed, heart_rate)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        ''', [(activity_id, p['timestamp'], p.get('latitude'), p.get('longitude'),
-               p['distance'], p.get('speed'), p.get('heart_rate')) for p in points])
-        conn.commit()
-        conn.close()
+        db = SessionLocal()
+        try:
+            gps_points = [
+                GPSPointModel(
+                    activity_id=activity_id,
+                    timestamp=p['timestamp'],
+                    latitude=p.get('latitude'),
+                    longitude=p.get('longitude'),
+                    distance=p['distance'],
+                    speed=p.get('speed'),
+                    heart_rate=p.get('heart_rate')
+                )
+                for p in points
+            ]
+            db.add_all(gps_points)
+            db.commit()
+        finally:
+            db.close()
 
     @staticmethod
     def get_by_activity(activity_id: int) -> List[Dict[str, Any]]:
         """Get all GPS points for a specific activity."""
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute('SELECT * FROM gps_points WHERE activity_id = ? ORDER BY timestamp',
-                      (activity_id,))
-        points = [dict(row) for row in cursor.fetchall()]
-        conn.close()
-        return points
+        db = SessionLocal()
+        try:
+            points = db.query(GPSPointModel).filter(
+                GPSPointModel.activity_id == activity_id
+            ).order_by(GPSPointModel.timestamp).all()
+            return [
+                {
+                    'id': p.id,
+                    'activity_id': p.activity_id,
+                    'timestamp': p.timestamp.isoformat() if p.timestamp else None,
+                    'latitude': p.latitude,
+                    'longitude': p.longitude,
+                    'distance': p.distance,
+                    'speed': p.speed,
+                    'heart_rate': p.heart_rate
+                }
+                for p in points
+            ]
+        finally:
+            db.close()
 
 
 class PersonalBest:
-    """Model for personal best records."""
+    """Helper class for personal bests."""
 
     @staticmethod
     def upsert(activity_type: str, distance: float, best_time: int,
                avg_pace: float, activity_id: int, achieved_date: datetime):
         """Create or update a personal best record."""
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute('''
-            INSERT INTO personal_bests (activity_type, distance, best_time,
-                                       avg_pace, activity_id, achieved_date)
-            VALUES (?, ?, ?, ?, ?, ?)
-            ON CONFLICT(activity_type, distance)
-            DO UPDATE SET best_time = excluded.best_time,
-                         avg_pace = excluded.avg_pace,
-                         activity_id = excluded.activity_id,
-                         achieved_date = excluded.achieved_date
-            WHERE excluded.best_time < best_time
-        ''', (activity_type, distance, best_time, avg_pace, activity_id, achieved_date))
-        conn.commit()
-        conn.close()
+        db = SessionLocal()
+        try:
+            existing = db.query(PersonalBestModel).filter(
+                PersonalBestModel.activity_type == activity_type,
+                PersonalBestModel.distance == distance
+            ).first()
+
+            if existing:
+                if best_time < existing.best_time:
+                    existing.best_time = best_time
+                    existing.avg_pace = avg_pace
+                    existing.activity_id = activity_id
+                    existing.achieved_date = achieved_date
+            else:
+                pb = PersonalBestModel(
+                    activity_type=activity_type,
+                    distance=distance,
+                    best_time=best_time,
+                    avg_pace=avg_pace,
+                    activity_id=activity_id,
+                    achieved_date=achieved_date
+                )
+                db.add(pb)
+            db.commit()
+        finally:
+            db.close()
 
     @staticmethod
     def get_by_type(activity_type: str) -> List[Dict[str, Any]]:
         """Get all personal bests for a specific activity type."""
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute('''
-            SELECT * FROM personal_bests
-            WHERE activity_type = ?
-            ORDER BY distance
-        ''', (activity_type,))
-        pbs = [dict(row) for row in cursor.fetchall()]
-        conn.close()
-        return pbs
+        db = SessionLocal()
+        try:
+            pbs = db.query(PersonalBestModel).filter(
+                PersonalBestModel.activity_type == activity_type
+            ).order_by(PersonalBestModel.distance).all()
+            return [
+                {
+                    'id': pb.id,
+                    'activity_type': pb.activity_type,
+                    'distance': pb.distance,
+                    'best_time': pb.best_time,
+                    'avg_pace': pb.avg_pace,
+                    'activity_id': pb.activity_id,
+                    'achieved_date': pb.achieved_date.isoformat() if pb.achieved_date else None
+                }
+                for pb in pbs
+            ]
+        finally:
+            db.close()
 
     @staticmethod
     def get_all() -> List[Dict[str, Any]]:
         """Get all personal bests."""
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute('SELECT * FROM personal_bests ORDER BY activity_type, distance')
-        pbs = [dict(row) for row in cursor.fetchall()]
-        conn.close()
-        return pbs
+        db = SessionLocal()
+        try:
+            pbs = db.query(PersonalBestModel).order_by(
+                PersonalBestModel.activity_type,
+                PersonalBestModel.distance
+            ).all()
+            return [
+                {
+                    'id': pb.id,
+                    'activity_type': pb.activity_type,
+                    'distance': pb.distance,
+                    'best_time': pb.best_time,
+                    'avg_pace': pb.avg_pace,
+                    'activity_id': pb.activity_id,
+                    'achieved_date': pb.achieved_date.isoformat() if pb.achieved_date else None
+                }
+                for pb in pbs
+            ]
+        finally:
+            db.close()

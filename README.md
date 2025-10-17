@@ -36,30 +36,56 @@ victoria/
 └── README.md             # This file
 ```
 
-## Setup Instructions
+## Quick Start with Docker (Recommended)
 
-1. **Create a virtual environment:**
+The easiest way to run the application is with Docker:
+
+```bash
+docker-compose up
+```
+
+That's it! The application and PostgreSQL database will start automatically.
+
+Access the application:
+- **Web Interface:** `http://localhost:8000`
+- **API Documentation (Swagger):** `http://localhost:8000/api/docs`
+- **API Documentation (ReDoc):** `http://localhost:8000/api/redoc`
+
+See [DOCKER.md](DOCKER.md) for detailed Docker documentation.
+
+## Manual Setup (Alternative)
+
+If you prefer to run without Docker:
+
+1. **Install PostgreSQL** and create a database named `victoria`
+
+2. **Create a virtual environment:**
    ```bash
    python3 -m venv venv
    source venv/bin/activate  # On Windows: venv\Scripts\activate
    ```
 
-2. **Install dependencies:**
+3. **Install dependencies:**
    ```bash
    pip install -r requirements.txt
    ```
 
-3. **Run the application:**
+4. **Set database URL:**
    ```bash
-   cd app
-   uvicorn main:app --reload --host 127.0.0.1 --port 5000
+   export DATABASE_URL="postgresql://user:password@localhost:5432/victoria"
    ```
 
-4. **Access the webapp:**
-   - **Web Interface:** `http://127.0.0.1:5000`
-   - **API Documentation (Swagger):** `http://127.0.0.1:5000/api/docs`
-   - **API Documentation (ReDoc):** `http://127.0.0.1:5000/api/redoc`
-   - **OpenAPI JSON:** `http://127.0.0.1:5000/api/openapi.json`
+5. **Run the application:**
+   ```bash
+   cd app
+   uvicorn main:app --reload --host 127.0.0.1 --port 8000
+   ```
+
+6. **Access the webapp:**
+   - **Web Interface:** `http://127.0.0.1:8000`
+   - **API Documentation (Swagger):** `http://127.0.0.1:8000/api/docs`
+   - **API Documentation (ReDoc):** `http://127.0.0.1:8000/api/redoc`
+   - **OpenAPI JSON:** `http://127.0.0.1:8000/api/openapi.json`
 
 ## Current Status
 
@@ -88,11 +114,12 @@ See `claude.md` for the full specification and implementation phases. The next f
 ## Technology Stack
 
 - **Backend:** FastAPI (Python) with automatic OpenAPI documentation
-- **Database:** SQLite
+- **Database:** PostgreSQL with SQLAlchemy ORM
 - **Frontend:** HTML, Tailwind CSS, Chart.js
 - **API:** RESTful API (v1) at `/api/v1` with Swagger UI and ReDoc
 - **File Processing:** fitparse (for .fit files)
 - **Server:** Uvicorn ASGI server
+- **Deployment:** Docker & Docker Compose
 
 ## Architecture
 
