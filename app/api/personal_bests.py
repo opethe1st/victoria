@@ -1,19 +1,22 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from typing import List
+from sqlalchemy.orm import Session
 from app.models import PersonalBestResponse
-from app.database import PersonalBest
+from app.database import get_db
+from app.services import PersonalBestService
 
 router = APIRouter()
 
 
 @router.get("/personal-bests", response_model=dict)
-async def get_all_personal_bests():
+async def get_all_personal_bests(db: Session = Depends(get_db)):
     """
     Get all personal bests across all activity types.
 
     Returns personal best records for swimming, cycling, and running.
     """
-    pbs = PersonalBest.get_all()
+    service = PersonalBestService(db)
+    pbs = service.get_all_personal_bests()
     return {
         "success": True,
         "data": pbs,
@@ -22,7 +25,7 @@ async def get_all_personal_bests():
 
 
 @router.get("/personal-bests/{activity_type}", response_model=dict)
-async def get_personal_bests_by_type(activity_type: str):
+async def get_personal_bests_by_type(activity_type: str, db: Session = Depends(get_db)):
     """
     Get personal bests for a specific activity type.
 
@@ -35,7 +38,8 @@ async def get_personal_bests_by_type(activity_type: str):
             detail=f"Invalid activity type. Must be one of: {', '.join(valid_types)}"
         )
 
-    pbs = PersonalBest.get_by_type(activity_type)
+    service = PersonalBestService(db)
+    pbs = service.get_personal_bests_by_type(activity_type)
     return {
         "success": True,
         "data": pbs,

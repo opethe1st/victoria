@@ -4,6 +4,7 @@ from fastapi.templating import Jinja2Templates
 import os
 from app.database import init_db
 from app.config import Config
+from app.error_handlers import register_error_handlers
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -25,6 +26,9 @@ os.makedirs(Config.UPLOAD_FOLDER, exist_ok=True)
 # Initialize database
 init_db()
 
+# Register error handlers
+register_error_handlers(app)
+
 # Register routers
 from app.api import activities as api_activities
 from app.api import personal_bests as api_personal_bests
@@ -34,7 +38,7 @@ app.include_router(api_activities.router, prefix="/api/v1", tags=["activities"])
 app.include_router(api_personal_bests.router, prefix="/api/v1", tags=["personal-bests"])
 app.include_router(web_routes.router, tags=["web"])
 
-# Make config available to templates
+# Health check endpoint
 @app.get("/api/health")
 async def health_check():
     """Health check endpoint."""
