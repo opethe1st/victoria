@@ -81,109 +81,71 @@ def get_db():
         db.close()
 
 
-# Helper functions for compatibility with existing code
+# Legacy helper classes for backward compatibility
+# TODO: Remove these once all code is migrated to use services
 class Activity:
-    """Helper class to maintain compatibility with existing code."""
+    """Deprecated: Use ActivityService instead."""
 
     @staticmethod
     def create(activity_type: str, activity_date: datetime, duration: int,
                total_distance: float, file_path: str, avg_heart_rate: Optional[int] = None) -> int:
-        """Create a new activity record."""
+        """Deprecated: Use ActivityService.create_from_fit_file() instead."""
+        from app.services import ActivityService
         db = SessionLocal()
         try:
-            activity = ActivityModel(
-                activity_type=activity_type,
-                upload_date=datetime.now(),
-                activity_date=activity_date,
-                duration=duration,
-                total_distance=total_distance,
-                avg_heart_rate=avg_heart_rate,
-                file_path=file_path
-            )
-            db.add(activity)
-            db.commit()
-            db.refresh(activity)
+            service = ActivityService(db)
+            from app.repositories import ActivityRepository
+            repo = ActivityRepository(db)
+            activity = repo.create(activity_type, activity_date, duration, total_distance, file_path, avg_heart_rate)
             return activity.id
         finally:
             db.close()
 
     @staticmethod
     def get_all() -> List[Dict[str, Any]]:
-        """Get all activities."""
+        """Deprecated: Use ActivityService.get_all_activities() instead."""
+        from app.services import ActivityService
         db = SessionLocal()
         try:
-            activities = db.query(ActivityModel).order_by(ActivityModel.activity_date.desc()).all()
-            return [
-                {
-                    'id': a.id,
-                    'activity_type': a.activity_type,
-                    'upload_date': a.upload_date.isoformat() if a.upload_date else None,
-                    'activity_date': a.activity_date.isoformat() if a.activity_date else None,
-                    'duration': a.duration,
-                    'total_distance': a.total_distance,
-                    'avg_heart_rate': a.avg_heart_rate,
-                    'file_path': a.file_path
-                }
-                for a in activities
-            ]
+            service = ActivityService(db)
+            return service.get_all_activities()
         finally:
             db.close()
 
     @staticmethod
     def get_by_id(activity_id: int) -> Optional[Dict[str, Any]]:
-        """Get a specific activity by ID."""
+        """Deprecated: Use ActivityService.get_activity_by_id() instead."""
+        from app.services import ActivityService
         db = SessionLocal()
         try:
-            activity = db.query(ActivityModel).filter(ActivityModel.id == activity_id).first()
-            if not activity:
-                return None
-            return {
-                'id': activity.id,
-                'activity_type': activity.activity_type,
-                'upload_date': activity.upload_date.isoformat() if activity.upload_date else None,
-                'activity_date': activity.activity_date.isoformat() if activity.activity_date else None,
-                'duration': activity.duration,
-                'total_distance': activity.total_distance,
-                'avg_heart_rate': activity.avg_heart_rate,
-                'file_path': activity.file_path
-            }
+            service = ActivityService(db)
+            return service.get_activity_by_id(activity_id)
         finally:
             db.close()
 
 
 class GPSPoint:
-    """Helper class for GPS points."""
+    """Deprecated: Use GPSPointRepository instead."""
 
     @staticmethod
     def create_batch(activity_id: int, points: List[Dict[str, Any]]):
-        """Create multiple GPS points for an activity."""
+        """Deprecated: Use GPSPointRepository.create_batch() instead."""
+        from app.repositories import GPSPointRepository
         db = SessionLocal()
         try:
-            gps_points = [
-                GPSPointModel(
-                    activity_id=activity_id,
-                    timestamp=p['timestamp'],
-                    latitude=p.get('latitude'),
-                    longitude=p.get('longitude'),
-                    distance=p['distance'],
-                    speed=p.get('speed'),
-                    heart_rate=p.get('heart_rate')
-                )
-                for p in points
-            ]
-            db.add_all(gps_points)
-            db.commit()
+            repo = GPSPointRepository(db)
+            repo.create_batch(activity_id, points)
         finally:
             db.close()
 
     @staticmethod
     def get_by_activity(activity_id: int) -> List[Dict[str, Any]]:
-        """Get all GPS points for a specific activity."""
+        """Deprecated: Use GPSPointRepository.get_by_activity() instead."""
+        from app.repositories import GPSPointRepository
         db = SessionLocal()
         try:
-            points = db.query(GPSPointModel).filter(
-                GPSPointModel.activity_id == activity_id
-            ).order_by(GPSPointModel.timestamp).all()
+            repo = GPSPointRepository(db)
+            points = repo.get_by_activity(activity_id)
             return [
                 {
                     'id': p.id,
@@ -202,82 +164,38 @@ class GPSPoint:
 
 
 class PersonalBest:
-    """Helper class for personal bests."""
+    """Deprecated: Use PersonalBestService instead."""
 
     @staticmethod
     def upsert(activity_type: str, distance: float, best_time: int,
                avg_pace: float, activity_id: int, achieved_date: datetime):
-        """Create or update a personal best record."""
+        """Deprecated: Use PersonalBestService.upsert_personal_best() instead."""
+        from app.services import PersonalBestService
         db = SessionLocal()
         try:
-            existing = db.query(PersonalBestModel).filter(
-                PersonalBestModel.activity_type == activity_type,
-                PersonalBestModel.distance == distance
-            ).first()
-
-            if existing:
-                if best_time < existing.best_time:
-                    existing.best_time = best_time
-                    existing.avg_pace = avg_pace
-                    existing.activity_id = activity_id
-                    existing.achieved_date = achieved_date
-            else:
-                pb = PersonalBestModel(
-                    activity_type=activity_type,
-                    distance=distance,
-                    best_time=best_time,
-                    avg_pace=avg_pace,
-                    activity_id=activity_id,
-                    achieved_date=achieved_date
-                )
-                db.add(pb)
-            db.commit()
+            service = PersonalBestService(db)
+            service.upsert_personal_best(activity_type, distance, best_time, avg_pace, activity_id, achieved_date)
         finally:
             db.close()
 
     @staticmethod
     def get_by_type(activity_type: str) -> List[Dict[str, Any]]:
-        """Get all personal bests for a specific activity type."""
+        """Deprecated: Use PersonalBestService.get_personal_bests_by_type() instead."""
+        from app.services import PersonalBestService
         db = SessionLocal()
         try:
-            pbs = db.query(PersonalBestModel).filter(
-                PersonalBestModel.activity_type == activity_type
-            ).order_by(PersonalBestModel.distance).all()
-            return [
-                {
-                    'id': pb.id,
-                    'activity_type': pb.activity_type,
-                    'distance': pb.distance,
-                    'best_time': pb.best_time,
-                    'avg_pace': pb.avg_pace,
-                    'activity_id': pb.activity_id,
-                    'achieved_date': pb.achieved_date.isoformat() if pb.achieved_date else None
-                }
-                for pb in pbs
-            ]
+            service = PersonalBestService(db)
+            return service.get_personal_bests_by_type(activity_type)
         finally:
             db.close()
 
     @staticmethod
     def get_all() -> List[Dict[str, Any]]:
-        """Get all personal bests."""
+        """Deprecated: Use PersonalBestService.get_all_personal_bests() instead."""
+        from app.services import PersonalBestService
         db = SessionLocal()
         try:
-            pbs = db.query(PersonalBestModel).order_by(
-                PersonalBestModel.activity_type,
-                PersonalBestModel.distance
-            ).all()
-            return [
-                {
-                    'id': pb.id,
-                    'activity_type': pb.activity_type,
-                    'distance': pb.distance,
-                    'best_time': pb.best_time,
-                    'avg_pace': pb.avg_pace,
-                    'activity_id': pb.activity_id,
-                    'achieved_date': pb.achieved_date.isoformat() if pb.achieved_date else None
-                }
-                for pb in pbs
-            ]
+            service = PersonalBestService(db)
+            return service.get_all_personal_bests()
         finally:
             db.close()
