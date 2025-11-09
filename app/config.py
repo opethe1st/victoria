@@ -9,6 +9,9 @@ class Config:
     # Secret key
     SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
 
+    # Debug mode
+    DEBUG = os.environ.get('DEBUG', 'False').lower() in ('true', '1', 'yes')
+
     # Database configuration
     DATABASE_URL = os.environ.get(
         'DATABASE_URL',

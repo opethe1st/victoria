@@ -1,11 +1,12 @@
-from fastapi import APIRouter, Request, UploadFile, File, Form
+from fastapi import APIRouter, Request, UploadFile, File, Form, Depends
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
+from sqlalchemy.orm import Session
 import os
 from datetime import datetime
-from app.database import Activity, PersonalBest, GPSPoint
+from app.database import get_db
+from app.services import ActivityService, PersonalBestService
 from app.config import Config
-from app.fit_parser import parse_fit_file
 from app.utils import calculate_pace_or_speed, format_duration, format_distance
 
 router = APIRouter()
@@ -26,10 +27,13 @@ def get_template_context(request: Request, **kwargs):
 
 
 @router.get("/", response_class=HTMLResponse)
-async def index(request: Request):
+async def index(request: Request, db: Session = Depends(get_db)):
     """Dashboard/Home page."""
-    recent_activities = Activity.get_all()[:10]
-    personal_bests = PersonalBest.get_all()[:5]
+    activity_service = ActivityService(db)
+    pb_service = PersonalBestService(db)
+
+    recent_activities = activity_service.get_all_activities()[:10]
+    personal_bests = pb_service.get_all_personal_bests()[:5]
 
     return templates.TemplateResponse(
         "index.html",
@@ -48,7 +52,11 @@ async def upload_page(request: Request):
 
 
 @router.post("/upload")
-async def upload_file(request: Request, file: UploadFile = File(...)):
+async def upload_file(
+    request: Request,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db)
+):
     """Handle file upload and parse .fit file."""
     if not file.filename.endswith('.fit'):
         # Return to upload page with error
@@ -65,37 +73,25 @@ async def upload_file(request: Request, file: UploadFile = File(...)):
         content = await file.read()
         buffer.write(content)
 
-    # Parse the .fit file
-    activity_data = parse_fit_file(filepath)
+    # Use service layer to create activity from FIT file
+    activity_service = ActivityService(db)
+    activity_id = activity_service.create_from_fit_file(filepath)
 
-    if not activity_data:
+    if not activity_id:
         return templates.TemplateResponse(
             "upload.html",
             get_template_context(request, error="Failed to parse .fit file. Please ensure it's a valid file.")
         )
-
-    # Create activity record in database
-    activity_id = Activity.create(
-        activity_type=activity_data['activity_type'],
-        activity_date=activity_data['activity_date'],
-        duration=activity_data['duration'],
-        total_distance=activity_data['total_distance'],
-        file_path=filepath,
-        avg_heart_rate=activity_data['avg_heart_rate']
-    )
-
-    # Store GPS points if available
-    if activity_data['gps_points']:
-        GPSPoint.create_batch(activity_id, activity_data['gps_points'])
 
     # Redirect to activities page with success
     return RedirectResponse(url="/activities", status_code=303)
 
 
 @router.get("/activities", response_class=HTMLResponse)
-async def activities(request: Request):
+async def activities(request: Request, db: Session = Depends(get_db)):
     """Activities list page."""
-    all_activities = Activity.get_all()
+    activity_service = ActivityService(db)
+    all_activities = activity_service.get_all_activities()
     return templates.TemplateResponse(
         "activities.html",
         get_template_context(request, activities=all_activities)
@@ -103,9 +99,10 @@ async def activities(request: Request):
 
 
 @router.get("/activities/{activity_id}", response_class=HTMLResponse)
-async def activity_detail(request: Request, activity_id: int):
+async def activity_detail(request: Request, activity_id: int, db: Session = Depends(get_db)):
     """Individual activity detail page."""
-    activity = Activity.get_by_id(activity_id)
+    activity_service = ActivityService(db)
+    activity = activity_service.get_activity_by_id(activity_id)
     if not activity:
         return RedirectResponse(url="/activities", status_code=303)
 
@@ -116,11 +113,12 @@ async def activity_detail(request: Request, activity_id: int):
 
 
 @router.get("/personal-bests", response_class=HTMLResponse)
-async def personal_bests(request: Request):
+async def personal_bests(request: Request, db: Session = Depends(get_db)):
     """Personal bests page."""
-    swimming_pbs = PersonalBest.get_by_type('swimming')
-    cycling_pbs = PersonalBest.get_by_type('cycling')
-    running_pbs = PersonalBest.get_by_type('running')
+    pb_service = PersonalBestService(db)
+    swimming_pbs = pb_service.get_personal_bests_by_type('swimming')
+    cycling_pbs = pb_service.get_personal_bests_by_type('cycling')
+    running_pbs = pb_service.get_personal_bests_by_type('running')
 
     return templates.TemplateResponse(
         "personal_bests.html",
