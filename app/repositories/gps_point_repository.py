@@ -28,7 +28,7 @@ class GPSPointRepository:
             for p in points
         ]
         self.db.add_all(gps_points)
-        self.db.commit()
+        # Let service handle commit
 
     def get_by_activity(self, activity_id: int) -> List[GPSPointModel]:
         """Get all GPS points for a specific activity."""
@@ -41,4 +41,4 @@ class GPSPointRepository:
         self.db.query(GPSPointModel).filter(
             GPSPointModel.activity_id == activity_id
         ).delete()
-        self.db.commit()
+        # Let service handle commit

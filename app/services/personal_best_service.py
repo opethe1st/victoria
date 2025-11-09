@@ -29,28 +29,35 @@ class PersonalBestService:
 
         Only updates if the new time is better than the existing one.
         """
-        existing = self.pb_repo.get_by_type_and_distance(activity_type, distance)
+        try:
+            existing = self.pb_repo.get_by_type_and_distance(activity_type, distance)
 
-        if existing:
-            # Only update if new time is better (lower)
-            if best_time < existing.best_time:
-                self.pb_repo.update(
-                    existing,
+            if existing:
+                # Only update if new time is better (lower)
+                if best_time < existing.best_time:
+                    self.pb_repo.update(
+                        existing,
+                        best_time=best_time,
+                        avg_pace=avg_pace,
+                        activity_id=activity_id,
+                        achieved_date=achieved_date
+                    )
+            else:
+                # Create new PB record
+                self.pb_repo.create(
+                    activity_type=activity_type,
+                    distance=distance,
                     best_time=best_time,
                     avg_pace=avg_pace,
                     activity_id=activity_id,
                     achieved_date=achieved_date
                 )
-        else:
-            # Create new PB record
-            self.pb_repo.create(
-                activity_type=activity_type,
-                distance=distance,
-                best_time=best_time,
-                avg_pace=avg_pace,
-                activity_id=activity_id,
-                achieved_date=achieved_date
-            )
+
+            # Commit the transaction
+            self.db.commit()
+        except Exception:
+            self.db.rollback()
+            raise
 
     def get_all_personal_bests(self) -> List[Dict[str, Any]]:
         """Get all personal bests as dictionaries."""

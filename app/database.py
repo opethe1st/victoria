@@ -6,7 +6,7 @@ from typing import Optional, List, Dict, Any
 from app.config import Config
 
 # Create database engine
-engine = create_engine(Config.DATABASE_URL, echo=True)
+engine = create_engine(Config.DATABASE_URL, echo=Config.DEBUG)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
@@ -82,7 +82,10 @@ def get_db():
 
 
 # Legacy helper classes for backward compatibility
-# TODO: Remove these once all code is migrated to use services
+# TODO: Remove these once all code is migrated to use services directly
+# Migration status: Web routes (app/web/routes.py) still use these classes
+# Target removal: Once web routes are updated to use FastAPI endpoints
+# Tracking: See issue #2 for migration progress
 class Activity:
     """Deprecated: Use ActivityService instead."""
 
@@ -98,6 +101,9 @@ class Activity:
             repo = ActivityRepository(db)
             activity = repo.create(activity_type, activity_date, duration, total_distance, file_path, avg_heart_rate)
             return activity.id
+        except Exception:
+            db.rollback()
+            raise
         finally:
             db.close()
 
@@ -109,6 +115,9 @@ class Activity:
         try:
             service = ActivityService(db)
             return service.get_all_activities()
+        except Exception:
+            db.rollback()
+            raise
         finally:
             db.close()
 
@@ -120,6 +129,9 @@ class Activity:
         try:
             service = ActivityService(db)
             return service.get_activity_by_id(activity_id)
+        except Exception:
+            db.rollback()
+            raise
         finally:
             db.close()
 
@@ -135,6 +147,9 @@ class GPSPoint:
         try:
             repo = GPSPointRepository(db)
             repo.create_batch(activity_id, points)
+        except Exception:
+            db.rollback()
+            raise
         finally:
             db.close()
 
@@ -159,6 +174,9 @@ class GPSPoint:
                 }
                 for p in points
             ]
+        except Exception:
+            db.rollback()
+            raise
         finally:
             db.close()
 
@@ -175,6 +193,9 @@ class PersonalBest:
         try:
             service = PersonalBestService(db)
             service.upsert_personal_best(activity_type, distance, best_time, avg_pace, activity_id, achieved_date)
+        except Exception:
+            db.rollback()
+            raise
         finally:
             db.close()
 
@@ -186,6 +207,9 @@ class PersonalBest:
         try:
             service = PersonalBestService(db)
             return service.get_personal_bests_by_type(activity_type)
+        except Exception:
+            db.rollback()
+            raise
         finally:
             db.close()
 
@@ -197,5 +221,8 @@ class PersonalBest:
         try:
             service = PersonalBestService(db)
             return service.get_all_personal_bests()
+        except Exception:
+            db.rollback()
+            raise
         finally:
             db.close()

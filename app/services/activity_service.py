@@ -23,26 +23,32 @@ class ActivityService:
 
         Returns the activity ID if successful, None otherwise.
         """
-        # Parse the FIT file
-        activity_data = parse_fit_file(filepath)
-        if not activity_data:
-            return None
+        try:
+            # Parse the FIT file
+            activity_data = parse_fit_file(filepath)
+            if not activity_data:
+                return None
 
-        # Create activity record
-        activity = self.activity_repo.create(
-            activity_type=activity_data['activity_type'],
-            activity_date=activity_data['activity_date'],
-            duration=activity_data['duration'],
-            total_distance=activity_data['total_distance'],
-            file_path=filepath,
-            avg_heart_rate=activity_data['avg_heart_rate']
-        )
+            # Create activity record
+            activity = self.activity_repo.create(
+                activity_type=activity_data['activity_type'],
+                activity_date=activity_data['activity_date'],
+                duration=activity_data['duration'],
+                total_distance=activity_data['total_distance'],
+                file_path=filepath,
+                avg_heart_rate=activity_data['avg_heart_rate']
+            )
 
-        # Store GPS points if available
-        if activity_data['gps_points']:
-            self.gps_repo.create_batch(activity.id, activity_data['gps_points'])
+            # Store GPS points if available
+            if activity_data['gps_points']:
+                self.gps_repo.create_batch(activity.id, activity_data['gps_points'])
 
-        return activity.id
+            # Commit the transaction
+            self.db.commit()
+            return activity.id
+        except Exception:
+            self.db.rollback()
+            raise
 
     def get_all_activities(self) -> List[Dict[str, Any]]:
         """Get all activities as dictionaries."""
@@ -63,7 +69,14 @@ class ActivityService:
 
     def delete_activity(self, activity_id: int) -> bool:
         """Delete an activity and its GPS points."""
-        return self.activity_repo.delete(activity_id)
+        try:
+            result = self.activity_repo.delete(activity_id)
+            if result:
+                self.db.commit()
+            return result
+        except Exception:
+            self.db.rollback()
+            raise
 
     @staticmethod
     def _to_dict(activity) -> Dict[str, Any]:

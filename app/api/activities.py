@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from app.models import ActivityResponse
 from app.database import get_db
 from app.services import ActivityService
+from app.exceptions import ActivityNotFoundError
 
 router = APIRouter()
 
@@ -34,10 +35,7 @@ async def get_activity(activity_id: int, db: Session = Depends(get_db)):
     service = ActivityService(db)
     activity = service.get_activity_by_id(activity_id)
     if not activity:
-        raise HTTPException(
-            status_code=404,
-            detail="Activity not found"
-        )
+        raise ActivityNotFoundError(f"Activity with ID {activity_id} not found")
 
     return {
         "success": True,

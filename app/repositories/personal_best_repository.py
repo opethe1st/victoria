@@ -5,6 +5,7 @@ from typing import List, Optional
 from datetime import datetime
 from sqlalchemy.orm import Session
 from app.database import PersonalBestModel
+from app.validation import validate_activity_type, validate_positive_number
 
 
 class PersonalBestRepository:
@@ -33,8 +34,14 @@ class PersonalBestRepository:
         achieved_date: datetime
     ) -> PersonalBestModel:
         """Create a new personal best record."""
+        # Validate inputs
+        validate_activity_type(activity_type)
+        validate_positive_number(distance, "distance")
+        validate_positive_number(best_time, "best_time")
+        validate_positive_number(avg_pace, "avg_pace")
+
         pb = PersonalBestModel(
-            activity_type=activity_type,
+            activity_type=activity_type.lower(),
             distance=distance,
             best_time=best_time,
             avg_pace=avg_pace,
@@ -42,8 +49,7 @@ class PersonalBestRepository:
             achieved_date=achieved_date
         )
         self.db.add(pb)
-        self.db.commit()
-        self.db.refresh(pb)
+        self.db.flush()
         return pb
 
     def update(
@@ -55,12 +61,15 @@ class PersonalBestRepository:
         achieved_date: datetime
     ) -> PersonalBestModel:
         """Update an existing personal best record."""
+        # Validate inputs
+        validate_positive_number(best_time, "best_time")
+        validate_positive_number(avg_pace, "avg_pace")
+
         pb.best_time = best_time
         pb.avg_pace = avg_pace
         pb.activity_id = activity_id
         pb.achieved_date = achieved_date
-        self.db.commit()
-        self.db.refresh(pb)
+        # Let service handle commit
         return pb
 
     def get_by_type(self, activity_type: str) -> List[PersonalBestModel]:
